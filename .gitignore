@@ -10,6 +10,7 @@ project/project
 project/target
 target
 dist
+.bsp
 
 /.idea
 /.idea_modules
