@@ -2,7 +2,7 @@
 # Edit at https://www.toptal.com/developers/gitignore?templates=scala,intellij+all,sbt,maven,groovy,metals,bloop,visualstudiocode,gradle
 
 ### Exercism ###
-.exercism/codefo
+.exercism/
 
 ### Bloop ###
 .bloop/
