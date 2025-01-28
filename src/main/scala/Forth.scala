@@ -18,6 +18,7 @@ def run(ws: List[String], st: List[String] = Nil): Either[ForthError, List[Strin
    else
       (ws.head, st) match
          case (":", _)              => Left(ForthError.UnknownWord)
+         case (s, l) if s.matches("\\d+") => run(ws.tail, s :: l)
          case ("+", a :: b :: tail) => run(ws.tail, (a.toInt + b.toInt).toString :: tail)
          case ("-", a :: b :: tail) => run(ws.tail, (b.toInt - a.toInt).toString :: tail)
          case ("*", a :: b :: tail) => run(ws.tail, (a.toInt * b.toInt).toString :: tail)
@@ -28,7 +29,7 @@ def run(ws: List[String], st: List[String] = Nil): Either[ForthError, List[Strin
                  ws.tail,
                  (b.toInt / a.toInt).toString
                     :: tail)
-         case (s, l) if s.matches("\\d+") => run(ws.tail, s :: l)
+
          case ("dup", a :: tail)          => run(ws.tail, a :: a :: tail)
          case ("drop", _ :: tail)         => run(ws.tail, tail)
          case ("swap", a :: b :: tail)    => run(ws.tail, b :: a :: tail)

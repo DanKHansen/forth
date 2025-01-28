@@ -209,7 +209,7 @@ class ForthTest extends AnyFunSuite with Matchers:
    }
 
    test("user-defined words - errors if executing a non-existent word") {
-      pending
+      //pending
       forth.eval("foo").isLeft should be(true)
    }
 
