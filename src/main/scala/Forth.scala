@@ -1,4 +1,4 @@
-import ForthError.{ForthError, UnknownWord}
+import ForthError.{DivisionByZero, ForthError, InvalidWord, StackUnderflow, UnknownWord}
 
 import scala.annotation.tailrec
 
@@ -13,26 +13,23 @@ class Forth extends ForthEvaluator:
       run(ws).map(w => State(w.reverse))
 
 @tailrec
-def run(ws: List[String], st: List[String] = Nil): Either[ForthError, List[String]] =
-   if ws.isEmpty then Right(st)
-   else
-      (ws.head, st) match
-         case (":", _)              => Left(ForthError.UnknownWord)
-         case (s, l) if s.matches("\\d+") => run(ws.tail, s :: l)
-         case ("+", a :: b :: tail) => run(ws.tail, (a.toInt + b.toInt).toString :: tail)
-         case ("-", a :: b :: tail) => run(ws.tail, (b.toInt - a.toInt).toString :: tail)
-         case ("*", a :: b :: tail) => run(ws.tail, (a.toInt * b.toInt).toString :: tail)
-         case ("/", a :: b :: tail) =>
-            if a == "0" then Left(ForthError.DivisionByZero)
-            else
-               run(
-                 ws.tail,
-                 (b.toInt / a.toInt).toString
-                    :: tail)
+def run(words: List[String], stack: List[String] = Nil): Either[ForthError, List[String]] =
 
-         case ("dup", a :: tail)          => run(ws.tail, a :: a :: tail)
-         case ("drop", _ :: tail)         => run(ws.tail, tail)
-         case ("swap", a :: b :: tail)    => run(ws.tail, b :: a :: tail)
-         case ("over", a :: b :: tail)    => run(ws.tail, b :: a :: b :: tail)
-         case (_, l) if l.size <= 1       => Left(ForthError.StackUnderflow)
-         case (_, _)                      => Left(UnknownWord)
+   if words.isEmpty then Right(stack)
+   else
+      (words, stack) match
+
+         case (h :: t, st) if h forall (_.isDigit)       => run(t, h :: st)
+         case ("+" :: t, a :: b :: st)                   => run(t, (a.toInt + b.toInt).toString :: st)
+         case ("-" :: t, a :: b :: st)                   => run(t, (b.toInt - a.toInt).toString :: st)
+         case ("*" :: t, a :: b :: st)                   => run(t, (a.toInt * b.toInt).toString :: st)
+         case ("/" :: _, "0" :: _)                       => Left(DivisionByZero)
+         case ("/" :: t, a :: b :: st)                   => run(t, (b.toInt / a.toInt).toString :: st)
+         case ("dup" :: t, a :: st)                      => run(t, a :: a :: st)
+         case ("drop" :: t, _ :: st)                     => run(t, st)
+         case ("swap" :: t, a :: b :: st)                => run(t, b :: a :: st)
+         case ("over" :: t, a :: b :: st)                => run(t, b :: a :: b :: st)
+         case (_, st) if st.isEmpty | st.size <= 1       => Left(StackUnderflow)
+         case (":" :: w :: _, _) if w forall (_.isDigit) => Left(InvalidWord)
+         case (":" :: w :: t, st)                        => println(words); run(t, st)
+         case (_, _)                                     => Left(UnknownWord)
