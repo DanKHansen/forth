@@ -30,6 +30,9 @@ def run(words: List[String], stack: List[String] = Nil): Either[ForthError, List
          case (":" :: w :: _, _) if w forall (_.isDigit) => Left(InvalidWord)
 
          case (":" :: t, _) =>
+            val udf = words.splitAt(words.indexOf(";")+1)._1.filterNot(s => (s == ":") & (s == ";"))
+            val newWords = words.splitAt(words.indexOf(";")+1)._2
+            println((udf, newWords))
             println(
               udfws.updated[List[String]](
                 t.takeWhile(_ != ";").head,
