@@ -2,8 +2,7 @@ import ForthError.{DivisionByZero, ForthError, InvalidWord, StackUnderflow, Unkn
 
 import scala.annotation.tailrec
 
-// udf word syntax:        : word def ;
-val udfws: Map[String, List[String]] = Map.empty
+var udfws: Map[String, List[String]] = Map.empty
 case class State(stack: List[String]) extends ForthEvaluatorState:
    override def toString: String = stack.mkString(" ")
 
@@ -14,10 +13,10 @@ class Forth extends ForthEvaluator:
 
 @tailrec
 def run(words: List[String], stack: List[String] = Nil): Either[ForthError, List[String]] =
-   //println((words, stack))
    if words.isEmpty then Right(stack)
    else
       (words, stack) match
+         case (w :: _, st) if udfws.keySet.contains(w)   => Left(InvalidWord)//;run(udfws(w), st)
          case (h :: t, st) if h forall (_.isDigit)       => run(t, h :: st)
          case ("+" :: t, a :: b :: st)                   => run(t, (a.toInt + b.toInt).toString :: st)
          case ("-" :: t, a :: b :: st)                   => run(t, (b.toInt - a.toInt).toString :: st)
@@ -33,9 +32,9 @@ def run(words: List[String], stack: List[String] = Nil): Either[ForthError, List
          case (":" :: _, _) =>
             val udf = words.splitAt(words.indexOf(";") + 1)._1.filterNot(s => (s == ":") || (s == ";"))
             val newWords = words.splitAt(words.indexOf(";") + 1)._2
-            //println((udf, newWords))
-            println(udfws.updated(udf.head, udf.tail))
+            udfws = udfws.updated(udf.head, udf.tail)
+            println(udfws.groupMap(_._1)(_._2))
             run(newWords)
-         //case (w :: t, st) => run(t, udfws.getOrElse(w, ))
+
          case (_, st) if st.isEmpty || st.size <= 1 => Left(StackUnderflow)
          case (_, _)                                => Left(UnknownWord)

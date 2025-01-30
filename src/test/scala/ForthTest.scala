@@ -168,24 +168,24 @@ class ForthTest extends AnyFunSuite with Matchers:
    }
 
    test("user-defined words - execute in the right order") {
-      pending
+      //pending
       forth.eval(": countup 1 2 3 ; countup").fold(_ => "", _.toString) should be("1 2 3")
    }
 
    test("user-defined words - can override other user-defined words") {
-      pending
+      //pending
       forth
          .eval(": foo dup ; : foo dup dup ; 1 foo")
          .fold(_ => "", _.toString) should be("1 1 1")
    }
 
    test("user-defined words - can override built-in words") {
-      pending
+      //pending
       forth.eval(": swap dup ; 1 swap").fold(_ => "", _.toString) should be("1 1")
    }
 
    test("user-defined words - can override built-in operators") {
-      pending
+      //pending
       forth.eval(": + * ; 3 4 +").fold(_ => "", _.toString) should be("12")
    }
 
@@ -197,7 +197,7 @@ class ForthTest extends AnyFunSuite with Matchers:
    }
 
    test("user-defined words - can define word that uses word with the same name") {
-      pending
+      //pending
       forth
          .eval(": foo 10 ; : foo foo 1 + ; foo")
          .fold(_ => "", _.toString) should be("11")
@@ -239,7 +239,7 @@ class ForthTest extends AnyFunSuite with Matchers:
    }
 
    test("case-insensitivity - definitions are case-insensitive") {
-      pending
+      //pending
       forth
          .eval(": SWAP DUP Dup dup ; 1 swap")
          .fold(_ => "", _.toString) should be("1 1 1 1")
