@@ -116,9 +116,6 @@ fabric.properties
 
 .idea/*
 
-!.idea/codeStyles
-!.idea/runConfigurations
-
 ### Maven ###
 pom.xml.tag
 pom.xml.releaseBackup
