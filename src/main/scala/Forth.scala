@@ -1,62 +1,57 @@
 import ForthError.ForthError
-import scala.util.{Failure, Success, Try}
 
-class State extends ForthEvaluatorState:
-   var stack: List[Int] = List[Int]()
-   private val udfWs: Map[String, String] = Map.empty
-   def getInputString(name: String): String = udfWs(name)
+import scala.annotation.tailrec
+import scala.collection.immutable.::
 
-   override def toString: String = stack.reverse.mkString(" ")
+type Word = String
+type Words = List[Word]
+type Result = Either[ForthError, ForthEvaluatorState]
+
+class State(val stack: List[Int]) extends ForthEvaluatorState:
+   override def toString: String = super.toString
 
 class Forth extends ForthEvaluator:
+   private val dictionary: List[(Word, Words)] = List(
+     "+" -> List("+"),
+     "-" -> List("-"),
+     "*" -> List("*"),
+     "/" -> List("/"),
+     "dup" -> List("dup"),
+     "drop" -> List("drop"),
+     "swap" -> List("swap"),
+     "over" -> List("over"),
+     "dup-twice" -> List("dup", "dup")
+   )
    def eval(text: String): Either[ForthError, ForthEvaluatorState] =
-      val state = new State
-      evaluate(state, text.toLowerCase())
+      @tailrec
+      def interpret(words: Words, stack: List[Int] = Nil): Result =
+         if words.isEmpty then Right(State(stack))
+         else
+            (words, stack) match
+               case (w :: ws, st) =>
+                  w match
+                     case num if num.forall(_.isDigit) => interpret(ws, addToStack(num, st))
+                     case _                            =>
+                        val defn = dictionary.groupBy(_._1)(w).head._2
+                        execute(defn.head, st) match
+                           case Left(e)      => Left(e)
+                           case Right(newSt) => interpret(ws, newSt)
+               case _             => Left(ForthError.UnknownWord)
 
-   def evaluate(st: State, input: String): Either[ForthError, State] =
-      input
-         .split(" ")
-         .foldLeft[Either[ForthError, State]](Right(st))((e, str) =>
-            e match
-               case Right(s) => run(s, str)
-               case Left(_)  => e)
+      interpret(text.toLowerCase.split(" ").toList)
 
-   private def run(st: State, word: String): Either[ForthError, State] =
-      word match
-         case w if w.forall(_.isDigit) =>
-            st.stack = w.toInt :: st.stack
-            Right(st)
-         case "+"                      => arithmetic(st, (a, b) => a + b)
-         case "-"                      => arithmetic(st, (a, b) => b - a)
-         case "*"                      => arithmetic(st, (a, b) => a * b)
-         case "/"                      => arithmetic(st, (a, b) => b / a)
-         case "dup" | "drop"           => stackOps(st, word, 1)
-         case "swap" | "over"          => stackOps(st, word, 2)
-         case _                        => Left(ForthError.UnknownWord)
+   private def addToStack(w: Word, s: List[Int] = Nil) = w.toInt :: s
 
-   private def arithmetic(st: State, f: (Int, Int) => Int): Either[ForthError, State] =
-      if st.stack.size < 2 then Left(ForthError.StackUnderflow)
-      else
-         val res = Try(st.stack.take(2).reduce(f))
-         res match
-            case Failure(_)     => Left(ForthError.DivisionByZero)
-            case Success(value) =>
-               st.stack = value :: st.stack.drop(2)
-               Right(st)
-
-   private def stackOps(st: State, word: String, minSize: Int): Either[ForthError, State] =
-      if st.stack.size < minSize then Left(ForthError.StackUnderflow)
-      else
-         word match
-            case "dup"  =>
-               st.stack = st.stack.head :: st.stack
-            case "drop" =>
-               st.stack = st.stack.tail
-            case "swap" =>
-               st.stack = st.stack(1) :: st.stack.head :: st.stack.drop(2)
-            case "over" =>
-               st.stack = st.stack(1) :: st.stack.head :: st.stack(1) :: st.stack.drop(2)
-         Right(st)
-
-   def udfWords(st: State, word: String): Either[ForthError, State] =
-      evaluate(st, st.getInputString(word))
+   private def execute(w: Word, s: List[Int]): Either[ForthError, List[Int]] =
+      (w, s) match
+         case ("+", t :: l :: r)    => Right(t + l :: r)
+         case ("-", t :: l :: r)    => Right(l - t :: r)
+         case ("*", t :: l :: r)    => Right(l * t :: r)
+         case ("/", t :: l :: r)    =>
+            if t == 0 then Left(ForthError.DivisionByZero)
+            else Right(l / t :: r)
+         case ("dup", t :: r)       => Right(t :: t :: r)
+         case ("drop", _ :: r)      => Right(r)
+         case ("swap", t :: l :: r) => Right(l :: t :: r)
+         case ("over", t :: l :: r) => Right(l :: t :: l :: r)
+         case _                     => Left(ForthError.InvalidWord)
