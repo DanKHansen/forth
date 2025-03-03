@@ -4,47 +4,124 @@ import scala.annotation.tailrec
 
 type Result = Either[ForthError, ForthEvaluatorState]
 
-case class State(stack: List[Int] = List.empty) extends ForthEvaluatorState:
+case class State(stack: List[Int]) extends ForthEvaluatorState:
    override def toString: String = super.toString
-
-case class Def(word: String, definition: List[String], sta: State) extends Definition:
-   private val udf: Map[String, List[String]] = Map("dup-twice" -> List("dup", "dup"))
-   evaluate(Right(sta))
-   override def evaluate(state: Result): Result =
-      if udf.contains(word) then
-         println("word found"); execute(udf(word), Nil)
-      else Left(ForthError.UnknownWord)
 
 class Forth extends ForthEvaluator:
    def eval(text: String): Result =
       val words = text.toLowerCase.split(" ").toList
-      execute(words, Nil)
+      execute(words, Right(State(Nil)))
+
+object Add extends Definition:
+   override def evaluate(state: Result): Result =
+      state match
+         case Left(value) => Left(value)
+         case Right(st)   =>
+            st.stack match
+               case l if l.length < 2      => Left(ForthError.StackUnderflow)
+               case head :: follow :: next => Right(State((head + follow) :: next))
+               case _                      => Left(ForthError.InvalidWord)
+
+object Sub extends Definition:
+   override def evaluate(state: Result): Result =
+      state match
+         case Left(value) => Left(value)
+         case Right(st)   =>
+            st.stack match
+               case l if l.length < 2      => Left(ForthError.StackUnderflow)
+               case head :: follow :: next => Right(State((follow - head) :: next))
+               case _                      => Left(ForthError.InvalidWord)
+
+object Mul extends Definition:
+   override def evaluate(state: Result): Result =
+      state match
+         case Left(value) => Left(value)
+         case Right(st)   =>
+            st.stack match
+               case l if l.length < 2      => Left(ForthError.StackUnderflow)
+               case head :: follow :: next => Right(State((head * follow) :: next))
+               case _                      => Left(ForthError.InvalidWord)
+
+object Div extends Definition:
+   override def evaluate(state: Result): Result =
+      state match
+         case Left(value) => Left(value)
+         case Right(st)   =>
+            st.stack match
+               case 0 :: _                 => Left(ForthError.DivisionByZero)
+               case head :: follow :: next => Right(State((follow / head) :: next))
+               case l if l.length < 2      => Left(ForthError.StackUnderflow)
+               case _                      => Left(ForthError.InvalidWord)
+
+object Dup extends Definition:
+   override def evaluate(state: Result): Result =
+      state match
+         case Left(value) => Left(value)
+         case Right(st)   =>
+            st.stack match
+               case l if l.length < 1 => Left(ForthError.StackUnderflow)
+               case head :: next      => Right(State(head :: head :: next))
+               case _                 => Left(ForthError.InvalidWord)
+
+object Swap extends Definition:
+   override def evaluate(state: Result): Result =
+      state match
+         case Left(value) => Left(value)
+         case Right(st)   =>
+            st.stack match
+               case l if l.length < 1      => Left(ForthError.StackUnderflow)
+               case head :: follow :: next => Right(State(follow :: head :: next))
+               case _                      => Left(ForthError.InvalidWord)
+
+object Over extends Definition:
+   override def evaluate(state: Result): Result =
+      state match
+         case Left(value) => Left(value)
+         case Right(st)   =>
+            st.stack match
+               case l if l.length < 1      => Left(ForthError.StackUnderflow)
+               case head :: follow :: next => Right(State(follow :: head :: follow :: next))
+               case _                      => Left(ForthError.InvalidWord)
+
+object Drop extends Definition:
+   override def evaluate(state: Result): Result =
+      state match
+         case Left(value) => Left(value)
+         case Right(st)   =>
+            st.stack match
+               case l if l.length < 1 => Left(ForthError.StackUnderflow)
+               case _ :: next         => Right(State(next))
+               case _                 => Left(ForthError.InvalidWord)
+
+case class Num(num: Int) extends Definition:
+   override def evaluate(state: Result): Result =
+      state match
+         case Left(value) => Left(value)
+         case Right(st)   => Right(State(num :: st.stack))
+
+def Udf(l: List[String]): Result =
+   val ws = l.splitAt(l.indexOf(";"))
+   val wrd = ws._1.tail
+   val rest = wrd.tail
+   println(ws)
+   println(wrd)
+   println(rest)
+   execute(rest, Right(State(Nil)))
 
 @tailrec
-def execute(ws: List[String], st: List[Int]): Result =
-   if ws.isEmpty then Right(State(st))
+def execute(ws: List[String], st: Result): Result =
+   // println(ws)
+   if ws.isEmpty then st
    else
-      (ws, st) match
-         case (num :: tail, r) if num.forall(_.isDigit)    => execute(tail, num.toInt :: r)
-         case ("+" :: tail, t :: f :: r) if st.size >= 2   => execute(tail, t + f :: r)
-         case ("-" :: tail, t :: f :: r) if st.size >= 2   => execute(tail, f - t :: r)
-         case ("*" :: tail, t :: f :: r) if st.size >= 2   => execute(tail, f * t :: r)
-         case ("/" :: tail, t :: f :: r) if st.size >= 2   =>
-            if t == 0 then Left(ForthError.DivisionByZero) else execute(tail, f / t :: r)
-         case ("dup" :: tail, t :: r) if st.nonEmpty       => execute(tail, t :: t :: r)
-         case ("drop" :: tail, _ :: r) if st.nonEmpty      => execute(tail, r)
-         case ("swap" :: tail, t :: f :: r) if st.nonEmpty => execute(tail, f :: t :: r)
-         case ("over" :: tail, t :: f :: r) if st.nonEmpty => execute(tail, f :: t :: f :: r)
-         case (";" :: tail, r) if st.nonEmpty              => execute(tail, r)
-         case (":" :: tail, r)                             =>
-            val newWord = tail.takeWhile(_ != ";").head
-            if newWord.forall(_.isDigit) then Left(ForthError.InvalidWord)
-            else
-               val newDefinition = tail.takeWhile(_ != ";").tail
-               val remainder = tail.dropWhile(_ != ";").tail
-               // println((remainder, java.time.LocalTime.now()))
-               Def(newWord, newDefinition, State(st))
-               execute(remainder, r)
-
-         case (_, r) if r.size == 1 | r == Nil => Left(ForthError.StackUnderflow)
-         case _                                => Left(ForthError.UnknownWord)
+      ws match
+         case num :: tail if num.forall(_.isDigit) => execute(tail, Num(num.toInt).evaluate(st))
+         case ::(head, next) if head == "+"        => execute(next, Add.evaluate(st))
+         case ::(head, next) if head == "-"        => execute(next, Sub.evaluate(st))
+         case ::(head, next) if head == "*"        => execute(next, Mul.evaluate(st))
+         case ::(head, next) if head == "/"        => execute(next, Div.evaluate(st))
+         case ::(head, next) if head == "dup"      => execute(next, Dup.evaluate(st))
+         case ::(head, next) if head == "drop"     => execute(next, Drop.evaluate(st))
+         case ::(head, next) if head == "swap"     => execute(next, Swap.evaluate(st))
+         case ::(head, next) if head == "over"     => execute(next, Over.evaluate(st))
+         case ::(head, _) if head == ":"           => Udf(ws)
+         case _                                    => Left(ForthError.InvalidWord)
